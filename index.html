@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Volume of Revolution Visualizer</title>
+<title>Volume Around Linear Equation</title>
 
 <style>
 
@@ -28,7 +28,7 @@ h1{
 }
 
 .panel{
-    width:340px;
+    width:360px;
     background:#1e293b;
     padding:20px;
     border-radius:15px;
@@ -62,51 +62,44 @@ button{
     cursor:pointer;
 }
 
-button:hover{
-    background:#1d4ed8;
-}
-
 canvas{
     background:white;
     border-radius:15px;
-    cursor:grab;
 }
 
 .result{
     margin-top:15px;
-    line-height:1.6;
+    line-height:1.7;
 }
 
 .formula{
     background:#111827;
     padding:10px;
     border-radius:10px;
+    overflow-wrap:break-word;
 }
 
 </style>
 </head>
 <body>
 
-<h1>Volume of Revolution Visualizer</h1>
+<h1>Volume Around a Linear Equation</h1>
 
 <div class="container">
 
 <div class="panel">
 
-<label>Upper Curve f(x)</label>
-<input id="fInput" value="2*x - x^2/4">
-
-<label>Lower Curve g(x)</label>
-<input id="gInput" value="x/2">
+<label>Curve f(x)</label>
+<input id="fInput" value="x^2">
 
 <label>Axis of Revolution</label>
-<input id="axisInput" value="y=0">
+<input id="axisInput" value="y=x">
 
-<label>Left Bound</label>
+<label>Lower Bound</label>
 <input id="aInput" value="0">
 
-<label>Right Bound</label>
-<input id="bInput" value="4">
+<label>Upper Bound</label>
+<input id="bInput" value="2">
 
 <button onclick="calculate()">Calculate</button>
 
@@ -119,7 +112,7 @@ Drag to pan
 
 </div>
 
-<canvas id="canvas" width="800" height="700"></canvas>
+<canvas id="canvas" width="850" height="700"></canvas>
 
 </div>
 
@@ -128,11 +121,11 @@ Drag to pan
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-let scale = 60;
+let scale = 70;
 let offsetX = canvas.width/2;
 let offsetY = canvas.height/2;
 
-let dragging = false;
+let dragging=false;
 let lastX,lastY;
 
 canvas.addEventListener("mousedown",e=>{
@@ -146,6 +139,7 @@ window.addEventListener("mouseup",()=>{
 });
 
 window.addEventListener("mousemove",e=>{
+
     if(!dragging) return;
 
     offsetX += e.clientX-lastX;
@@ -154,17 +148,16 @@ window.addEventListener("mousemove",e=>{
     lastX=e.clientX;
     lastY=e.clientY;
 
-    calculate();
+    redraw();
 });
 
 canvas.addEventListener("wheel",e=>{
+
     e.preventDefault();
 
-    const zoom = e.deltaY < 0 ? 1.1 : 0.9;
+    scale *= e.deltaY < 0 ? 1.1 : 0.9;
 
-    scale *= zoom;
-
-    calculate();
+    redraw();
 });
 
 function preprocess(expr){
@@ -194,23 +187,70 @@ function makeFunction(expr){
     `);
 }
 
-function integrate(func,a,b,n=5000){
+function derivative(f,x,h=1e-5){
 
-    let dx = (b-a)/n;
-    let sum = 0;
+    return (f(x+h)-f(x-h))/(2*h);
+}
+
+function integrate(func,a,b,n=12000){
+
+    let dx=(b-a)/n;
+    let sum=0;
 
     for(let i=0;i<n;i++){
 
-        let x = a + i*dx + dx/2;
+        let x=a+i*dx+dx/2;
 
-        let y = func(x);
+        let y=func(x);
 
-        if(!isFinite(y)) continue;
-
-        sum += y*dx;
+        if(isFinite(y)){
+            sum += y*dx;
+        }
     }
 
     return sum;
+}
+
+function parseLine(str){
+
+    str=str.replace(/\s/g,'');
+
+    if(!str.startsWith("y=")){
+        throw "Axis must look like y=mx+b";
+    }
+
+    let rhs=str.slice(2);
+
+    let m=0;
+    let b=0;
+
+    if(rhs.includes("x")){
+
+        let parts=rhs.split("x");
+
+        let mStr=parts[0];
+
+        if(mStr==="" || mStr==="+"){
+            m=1;
+        }
+        else if(mStr==="-"){
+            m=-1;
+        }
+        else{
+            m=Number(mStr);
+        }
+
+        if(parts[1]){
+            b=Number(parts[1]);
+        }
+
+    }else{
+
+        m=0;
+        b=Number(rhs);
+    }
+
+    return {m,b};
 }
 
 function toCanvas(x,y){
@@ -226,7 +266,7 @@ function drawGrid(){
     ctx.strokeStyle="#e5e7eb";
     ctx.lineWidth=1;
 
-    const step = scale;
+    let step=scale;
 
     for(let x=offsetX%step;x<canvas.width;x+=step){
 
@@ -261,7 +301,7 @@ function drawAxes(){
     ctx.stroke();
 }
 
-function drawCurve(func,color){
+function drawCurve(f,color){
 
     ctx.strokeStyle=color;
     ctx.lineWidth=3;
@@ -272,24 +312,25 @@ function drawCurve(func,color){
 
     for(let px=0;px<canvas.width;px++){
 
-        let x = (px-offsetX)/scale;
+        let x=(px-offsetX)/scale;
 
         let y;
 
         try{
-            y = func(x);
+            y=f(x);
         }catch{
             continue;
         }
 
         if(!isFinite(y)) continue;
 
-        let py = offsetY - y*scale;
+        let py=offsetY-y*scale;
 
         if(first){
             ctx.moveTo(px,py);
             first=false;
-        }else{
+        }
+        else{
             ctx.lineTo(px,py);
         }
     }
@@ -297,14 +338,41 @@ function drawCurve(func,color){
     ctx.stroke();
 }
 
-function shadeRegion(f,g,a,b){
+function drawLine(m,b){
+
+    ctx.strokeStyle="red";
+    ctx.lineWidth=2;
+
+    ctx.setLineDash([10,10]);
+
+    ctx.beginPath();
+
+    let x1=-100;
+    let y1=m*x1+b;
+
+    let x2=100;
+    let y2=m*x2+b;
+
+    let p1=toCanvas(x1,y1);
+    let p2=toCanvas(x2,y2);
+
+    ctx.moveTo(p1.x,p1.y);
+    ctx.lineTo(p2.x,p2.y);
+
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+}
+
+function shadeRegion(f,m,b,a,u){
 
     ctx.fillStyle="rgba(59,130,246,0.35)";
+
     ctx.beginPath();
 
     let first=true;
 
-    for(let x=a;x<=b;x+=0.01){
+    for(let x=a;x<=u;x+=0.01){
 
         let y=f(x);
 
@@ -318,9 +386,9 @@ function shadeRegion(f,g,a,b){
         }
     }
 
-    for(let x=b;x>=a;x-=0.01){
+    for(let x=u;x>=a;x-=0.01){
 
-        let y=g(x);
+        let y=m*x+b;
 
         let p=toCanvas(x,y);
 
@@ -331,56 +399,25 @@ function shadeRegion(f,g,a,b){
     ctx.fill();
 }
 
-function drawAxis(axis){
+let currentData=null;
 
-    ctx.strokeStyle="red";
-    ctx.lineWidth=2;
+function redraw(){
 
-    ctx.setLineDash([10,10]);
+    if(!currentData) return;
 
-    ctx.beginPath();
+    const {f,m,b,a,u}=currentData;
 
-    if(axis.type==="horizontal"){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
 
-        let p=toCanvas(0,axis.value);
+    drawGrid();
+    drawAxes();
 
-        ctx.moveTo(0,p.y);
-        ctx.lineTo(canvas.width,p.y);
+    shadeRegion(f,m,b,a,u);
 
-    }else{
+    drawCurve(f,"#22c55e");
+    drawCurve(x=>m*x+b,"#ef4444");
 
-        let p=toCanvas(axis.value,0);
-
-        ctx.moveTo(p.x,0);
-        ctx.lineTo(p.x,canvas.height);
-    }
-
-    ctx.stroke();
-
-    ctx.setLineDash([]);
-}
-
-function parseAxis(str){
-
-    str=str.replace(/\s/g,'');
-
-    if(str.startsWith("y=")){
-
-        return {
-            type:"horizontal",
-            value:Number(str.slice(2))
-        };
-    }
-
-    if(str.startsWith("x=")){
-
-        return {
-            type:"vertical",
-            value:Number(str.slice(2))
-        };
-    }
-
-    throw "Axis must look like y=2 or x=-1";
+    drawLine(m,b);
 }
 
 function calculate(){
@@ -388,55 +425,51 @@ function calculate(){
     try{
 
         const fExpr=document.getElementById("fInput").value;
-        const gExpr=document.getElementById("gInput").value;
 
         const f=makeFunction(fExpr);
-        const g=makeFunction(gExpr);
+
+        const axis=document.getElementById("axisInput").value;
+
+        const {m,b}=parseLine(axis);
 
         const a=Number(document.getElementById("aInput").value);
-        const b=Number(document.getElementById("bInput").value);
+        const u=Number(document.getElementById("bInput").value);
 
-        const axis=parseAxis(
-            document.getElementById("axisInput").value
-        );
+        /*
+        Formula:
 
-        let volume;
-        let setup;
+        π/(m²+1)^(3/2)
+        ∫ (f(x)-mx-b)^2 (1+m f'(x)) dx
+        */
 
-        if(axis.type==="horizontal"){
+        const integral = integrate(x=>{
 
-            const c=axis.value;
+            let fx=f(x);
 
-            volume = Math.PI * integrate(x=>{
+            let fp=derivative(f,x);
 
-                const R=Math.abs(f(x)-c);
-                const r=Math.abs(g(x)-c);
+            return (
+                (fx - (m*x+b))**2
+                *
+                (1 + m*fp)
+            );
 
-                return R*R-r*r;
+        },a,u);
 
-            },a,b);
+        const volume =
+            Math.PI /
+            Math.pow(m*m+1,1.5)
+            *
+            integral;
 
-            setup=`
-V = π ∫[${a},${b}] [(${fExpr}-(${c}))² - (${gExpr}-(${c}))²] dx
+        const setup = `
+V =
+π / (m²+1)^(3/2)
+∫[${a},${u}]
+(${fExpr} - (${m}x + ${b}))²
+(1 + ${m}f'(x))
+dx
 `;
-
-        }else{
-
-            const c=axis.value;
-
-            volume = 2*Math.PI*integrate(x=>{
-
-                const radius=Math.abs(x-c);
-                const height=Math.abs(f(x)-g(x));
-
-                return radius*height;
-
-            },a,b);
-
-            setup=`
-V = 2π ∫[${a},${b}] |x-${c}|(${fExpr}-(${gExpr})) dx
-`;
-        }
 
         document.getElementById("result").innerHTML=`
 
@@ -447,20 +480,13 @@ ${setup}
 <br>
 
 <b>Approximate Volume:</b><br>
-${volume.toFixed(6)}
+${volume.toFixed(8)}
 
 `;
 
-        ctx.clearRect(0,0,canvas.width,canvas.height);
+        currentData={f,m,b,a,u};
 
-        drawGrid();
-        drawAxes();
-        shadeRegion(f,g,a,b);
-
-        drawCurve(f,"#22c55e");
-        drawCurve(g,"#f59e0b");
-
-        drawAxis(axis);
+        redraw();
 
     }catch(err){
 
