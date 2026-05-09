@@ -1,341 +1,476 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Volume of Revolution Visualizer</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Volume of Revolution Visualizer</title>
 
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #111827;
-      color: white;
-      overflow-x: hidden;
-    }
+<style>
 
-    h1 {
-      text-align: center;
-      margin-top: 20px;
-    }
+body{
+    margin:0;
+    background:#0f172a;
+    color:white;
+    font-family:Arial;
+}
 
-    .container {
-      display: flex;
-      flex-wrap: wrap;
-      padding: 20px;
-      gap: 20px;
-      justify-content: center;
-    }
+h1{
+    text-align:center;
+    margin:15px;
+}
 
-    .panel {
-      background: #1f2937;
-      padding: 20px;
-      border-radius: 15px;
-      width: 350px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.4);
-    }
+.container{
+    display:flex;
+    gap:20px;
+    padding:20px;
+    flex-wrap:wrap;
+    justify-content:center;
+}
 
-    input {
-      width: 100%;
-      margin-top: 5px;
-      margin-bottom: 15px;
-      padding: 10px;
-      border-radius: 8px;
-      border: none;
-      background: #374151;
-      color: white;
-      font-size: 16px;
-    }
+.panel{
+    width:340px;
+    background:#1e293b;
+    padding:20px;
+    border-radius:15px;
+}
 
-    button {
-      width: 100%;
-      padding: 12px;
-      border: none;
-      border-radius: 10px;
-      background: #2563eb;
-      color: white;
-      font-size: 16px;
-      cursor: pointer;
-    }
+label{
+    display:block;
+    margin-top:10px;
+}
 
-    button:hover {
-      background: #1d4ed8;
-    }
+input{
+    width:100%;
+    padding:10px;
+    margin-top:5px;
+    border:none;
+    border-radius:8px;
+    background:#334155;
+    color:white;
+    box-sizing:border-box;
+}
 
-    canvas {
-      background: white;
-      border-radius: 15px;
-      max-width: 100%;
-    }
+button{
+    width:100%;
+    margin-top:15px;
+    padding:12px;
+    border:none;
+    border-radius:10px;
+    background:#2563eb;
+    color:white;
+    font-size:16px;
+    cursor:pointer;
+}
 
-    .result {
-      margin-top: 15px;
-      font-size: 18px;
-      line-height: 1.6;
-    }
+button:hover{
+    background:#1d4ed8;
+}
 
-    .formula {
-      background: #111827;
-      padding: 10px;
-      border-radius: 10px;
-      overflow-wrap: break-word;
-    }
-  </style>
+canvas{
+    background:white;
+    border-radius:15px;
+    cursor:grab;
+}
+
+.result{
+    margin-top:15px;
+    line-height:1.6;
+}
+
+.formula{
+    background:#111827;
+    padding:10px;
+    border-radius:10px;
+}
+
+</style>
 </head>
 <body>
 
-<h1>Volume of Revolution Calculator</h1>
+<h1>Volume of Revolution Visualizer</h1>
 
 <div class="container">
 
-  <div class="panel">
+<div class="panel">
 
-    <label>Upper Curve f(x)</label>
-    <input id="fInput" value="2*x - x*x/4">
+<label>Upper Curve f(x)</label>
+<input id="fInput" value="2*x - x^2/4">
 
-    <label>Lower Curve g(x)</label>
-    <input id="gInput" value="x/2">
+<label>Lower Curve g(x)</label>
+<input id="gInput" value="x/2">
 
-    <label>Axis of Revolution (linear equation)</label>
-    <input id="axisInput" value="y=0">
+<label>Axis of Revolution</label>
+<input id="axisInput" value="y=0">
 
-    <label>Left Bound</label>
-    <input id="aInput" value="0">
+<label>Left Bound</label>
+<input id="aInput" value="0">
 
-    <label>Right Bound</label>
-    <input id="bInput" value="4">
+<label>Right Bound</label>
+<input id="bInput" value="4">
 
-    <button onclick="calculate()">Calculate & Visualize</button>
+<button onclick="calculate()">Calculate</button>
 
-    <div class="result" id="result"></div>
+<div class="result" id="result"></div>
 
-  </div>
+<p>
+Scroll to zoom<br>
+Drag to pan
+</p>
 
-  <canvas id="graph" width="700" height="700"></canvas>
+</div>
+
+<canvas id="canvas" width="800" height="700"></canvas>
 
 </div>
 
 <script>
-const canvas = document.getElementById("graph");
+
+const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-function parseFunction(str) {
-  return new Function("x", "return " + str);
+let scale = 60;
+let offsetX = canvas.width/2;
+let offsetY = canvas.height/2;
+
+let dragging = false;
+let lastX,lastY;
+
+canvas.addEventListener("mousedown",e=>{
+    dragging=true;
+    lastX=e.clientX;
+    lastY=e.clientY;
+});
+
+window.addEventListener("mouseup",()=>{
+    dragging=false;
+});
+
+window.addEventListener("mousemove",e=>{
+    if(!dragging) return;
+
+    offsetX += e.clientX-lastX;
+    offsetY += e.clientY-lastY;
+
+    lastX=e.clientX;
+    lastY=e.clientY;
+
+    calculate();
+});
+
+canvas.addEventListener("wheel",e=>{
+    e.preventDefault();
+
+    const zoom = e.deltaY < 0 ? 1.1 : 0.9;
+
+    scale *= zoom;
+
+    calculate();
+});
+
+function preprocess(expr){
+
+    expr = expr.replace(/\^/g,"**");
+
+    const funcs = [
+        "sin","cos","tan",
+        "sqrt","log","abs",
+        "asin","acos","atan",
+        "exp"
+    ];
+
+    funcs.forEach(f=>{
+        expr = expr.replaceAll(f,`Math.${f}`);
+    });
+
+    return expr;
 }
 
-function parseAxis(str) {
-  str = str.replace(/\s/g, '');
+function makeFunction(expr){
 
-  if (str.startsWith('y=')) {
+    expr = preprocess(expr);
+
+    return new Function("x",`
+        return ${expr};
+    `);
+}
+
+function integrate(func,a,b,n=5000){
+
+    let dx = (b-a)/n;
+    let sum = 0;
+
+    for(let i=0;i<n;i++){
+
+        let x = a + i*dx + dx/2;
+
+        let y = func(x);
+
+        if(!isFinite(y)) continue;
+
+        sum += y*dx;
+    }
+
+    return sum;
+}
+
+function toCanvas(x,y){
+
     return {
-      type: 'horizontal',
-      value: parseFloat(str.slice(2))
+        x: offsetX + x*scale,
+        y: offsetY - y*scale
     };
-  }
-
-  if (str.startsWith('x=')) {
-    return {
-      type: 'vertical',
-      value: parseFloat(str.slice(2))
-    };
-  }
-
-  throw "Axis must be y=c or x=c";
 }
 
-function integrate(func, a, b, n = 5000) {
-  let dx = (b - a) / n;
-  let sum = 0;
+function drawGrid(){
 
-  for (let i = 0; i < n; i++) {
-    let x = a + i * dx + dx / 2;
-    sum += func(x) * dx;
-  }
+    ctx.strokeStyle="#e5e7eb";
+    ctx.lineWidth=1;
 
-  return sum;
-}
+    const step = scale;
 
-function worldToCanvas(x, y) {
-  const scale = 60;
-  return {
-    x: canvas.width / 2 + x * scale,
-    y: canvas.height / 2 - y * scale
-  };
-}
+    for(let x=offsetX%step;x<canvas.width;x+=step){
 
-function drawAxes() {
-  ctx.strokeStyle = "#cccccc";
-  ctx.lineWidth = 1;
-
-  ctx.beginPath();
-  ctx.moveTo(0, canvas.height / 2);
-  ctx.lineTo(canvas.width, canvas.height / 2);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(canvas.width / 2, 0);
-  ctx.lineTo(canvas.width / 2, canvas.height);
-  ctx.stroke();
-}
-
-function drawCurve(func, color, a, b) {
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-
-  let first = true;
-
-  for (let x = a; x <= b; x += 0.01) {
-    let y = func(x);
-    let p = worldToCanvas(x, y);
-
-    if (first) {
-      ctx.moveTo(p.x, p.y);
-      first = false;
-    } else {
-      ctx.lineTo(p.x, p.y);
-    }
-  }
-
-  ctx.stroke();
-}
-
-function shadeRegion(f, g, a, b) {
-  ctx.fillStyle = "rgba(59,130,246,0.3)";
-  ctx.beginPath();
-
-  let first = true;
-
-  for (let x = a; x <= b; x += 0.01) {
-    let y = f(x);
-    let p = worldToCanvas(x, y);
-
-    if (first) {
-      ctx.moveTo(p.x, p.y);
-      first = false;
-    } else {
-      ctx.lineTo(p.x, p.y);
-    }
-  }
-
-  for (let x = b; x >= a; x -= 0.01) {
-    let y = g(x);
-    let p = worldToCanvas(x, y);
-    ctx.lineTo(p.x, p.y);
-  }
-
-  ctx.closePath();
-  ctx.fill();
-}
-
-function drawAxis(axis) {
-  ctx.strokeStyle = "red";
-  ctx.lineWidth = 2;
-  ctx.setLineDash([10, 10]);
-
-  ctx.beginPath();
-
-  if (axis.type === 'horizontal') {
-    let p1 = worldToCanvas(-100, axis.value);
-    let p2 = worldToCanvas(100, axis.value);
-
-    ctx.moveTo(p1.x, p1.y);
-    ctx.lineTo(p2.x, p2.y);
-  } else {
-    let p1 = worldToCanvas(axis.value, -100);
-    let p2 = worldToCanvas(axis.value, 100);
-
-    ctx.moveTo(p1.x, p1.y);
-    ctx.lineTo(p2.x, p2.y);
-  }
-
-  ctx.stroke();
-  ctx.setLineDash([]);
-}
-
-function calculate() {
-
-  try {
-
-    const fStr = document.getElementById("fInput").value;
-    const gStr = document.getElementById("gInput").value;
-
-    const f = parseFunction(fStr);
-    const g = parseFunction(gStr);
-
-    const axis = parseAxis(
-      document.getElementById("axisInput").value
-    );
-
-    const a = parseFloat(document.getElementById("aInput").value);
-    const b = parseFloat(document.getElementById("bInput").value);
-
-    let volume;
-    let setup;
-
-    if (axis.type === 'horizontal') {
-
-      const c = axis.value;
-
-      volume = Math.PI * integrate(x => {
-        let R = Math.abs(f(x) - c);
-        let r = Math.abs(g(x) - c);
-
-        return R*R - r*r;
-      }, a, b);
-
-      setup = `
-        V = π ∫[${a}, ${b}] (
-        (${fStr} - ${c})²
-        -
-        (${gStr} - ${c})²
-        ) dx
-      `;
-
-    } else {
-
-      const c = axis.value;
-
-      volume = Math.PI * integrate(x => {
-        let R = Math.abs(x - c);
-        return R * (f(x) - g(x));
-      }, a, b) * 2;
-
-      setup = `
-        Shell Method:
-        V = 2π ∫[${a}, ${b}]
-        (${c} - x)
-        (${fStr} - (${gStr}))
-        dx
-      `;
+        ctx.beginPath();
+        ctx.moveTo(x,0);
+        ctx.lineTo(x,canvas.height);
+        ctx.stroke();
     }
 
-    document.getElementById("result").innerHTML = `
-      <div class="formula">
-        <strong>Integral Setup:</strong><br><br>
-        ${setup}
-      </div>
+    for(let y=offsetY%step;y<canvas.height;y+=step){
 
-      <br>
+        ctx.beginPath();
+        ctx.moveTo(0,y);
+        ctx.lineTo(canvas.width,y);
+        ctx.stroke();
+    }
+}
 
-      <strong>Approximate Volume:</strong><br>
-      ${volume.toFixed(6)}
-    `;
+function drawAxes(){
 
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.strokeStyle="black";
+    ctx.lineWidth=2;
 
-    drawAxes();
-    shadeRegion(f, g, a, b);
-    drawCurve(f, "#22c55e", a-2, b+2);
-    drawCurve(g, "#f59e0b", a-2, b+2);
-    drawAxis(axis);
+    ctx.beginPath();
+    ctx.moveTo(0,offsetY);
+    ctx.lineTo(canvas.width,offsetY);
+    ctx.stroke();
 
-  } catch(err) {
-    alert("Error: " + err);
-  }
+    ctx.beginPath();
+    ctx.moveTo(offsetX,0);
+    ctx.lineTo(offsetX,canvas.height);
+    ctx.stroke();
+}
+
+function drawCurve(func,color){
+
+    ctx.strokeStyle=color;
+    ctx.lineWidth=3;
+
+    ctx.beginPath();
+
+    let first=true;
+
+    for(let px=0;px<canvas.width;px++){
+
+        let x = (px-offsetX)/scale;
+
+        let y;
+
+        try{
+            y = func(x);
+        }catch{
+            continue;
+        }
+
+        if(!isFinite(y)) continue;
+
+        let py = offsetY - y*scale;
+
+        if(first){
+            ctx.moveTo(px,py);
+            first=false;
+        }else{
+            ctx.lineTo(px,py);
+        }
+    }
+
+    ctx.stroke();
+}
+
+function shadeRegion(f,g,a,b){
+
+    ctx.fillStyle="rgba(59,130,246,0.35)";
+    ctx.beginPath();
+
+    let first=true;
+
+    for(let x=a;x<=b;x+=0.01){
+
+        let y=f(x);
+
+        let p=toCanvas(x,y);
+
+        if(first){
+            ctx.moveTo(p.x,p.y);
+            first=false;
+        }else{
+            ctx.lineTo(p.x,p.y);
+        }
+    }
+
+    for(let x=b;x>=a;x-=0.01){
+
+        let y=g(x);
+
+        let p=toCanvas(x,y);
+
+        ctx.lineTo(p.x,p.y);
+    }
+
+    ctx.closePath();
+    ctx.fill();
+}
+
+function drawAxis(axis){
+
+    ctx.strokeStyle="red";
+    ctx.lineWidth=2;
+
+    ctx.setLineDash([10,10]);
+
+    ctx.beginPath();
+
+    if(axis.type==="horizontal"){
+
+        let p=toCanvas(0,axis.value);
+
+        ctx.moveTo(0,p.y);
+        ctx.lineTo(canvas.width,p.y);
+
+    }else{
+
+        let p=toCanvas(axis.value,0);
+
+        ctx.moveTo(p.x,0);
+        ctx.lineTo(p.x,canvas.height);
+    }
+
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+}
+
+function parseAxis(str){
+
+    str=str.replace(/\s/g,'');
+
+    if(str.startsWith("y=")){
+
+        return {
+            type:"horizontal",
+            value:Number(str.slice(2))
+        };
+    }
+
+    if(str.startsWith("x=")){
+
+        return {
+            type:"vertical",
+            value:Number(str.slice(2))
+        };
+    }
+
+    throw "Axis must look like y=2 or x=-1";
+}
+
+function calculate(){
+
+    try{
+
+        const fExpr=document.getElementById("fInput").value;
+        const gExpr=document.getElementById("gInput").value;
+
+        const f=makeFunction(fExpr);
+        const g=makeFunction(gExpr);
+
+        const a=Number(document.getElementById("aInput").value);
+        const b=Number(document.getElementById("bInput").value);
+
+        const axis=parseAxis(
+            document.getElementById("axisInput").value
+        );
+
+        let volume;
+        let setup;
+
+        if(axis.type==="horizontal"){
+
+            const c=axis.value;
+
+            volume = Math.PI * integrate(x=>{
+
+                const R=Math.abs(f(x)-c);
+                const r=Math.abs(g(x)-c);
+
+                return R*R-r*r;
+
+            },a,b);
+
+            setup=`
+V = π ∫[${a},${b}] [(${fExpr}-(${c}))² - (${gExpr}-(${c}))²] dx
+`;
+
+        }else{
+
+            const c=axis.value;
+
+            volume = 2*Math.PI*integrate(x=>{
+
+                const radius=Math.abs(x-c);
+                const height=Math.abs(f(x)-g(x));
+
+                return radius*height;
+
+            },a,b);
+
+            setup=`
+V = 2π ∫[${a},${b}] |x-${c}|(${fExpr}-(${gExpr})) dx
+`;
+        }
+
+        document.getElementById("result").innerHTML=`
+
+<div class="formula">
+${setup}
+</div>
+
+<br>
+
+<b>Approximate Volume:</b><br>
+${volume.toFixed(6)}
+
+`;
+
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+
+        drawGrid();
+        drawAxes();
+        shadeRegion(f,g,a,b);
+
+        drawCurve(f,"#22c55e");
+        drawCurve(g,"#f59e0b");
+
+        drawAxis(axis);
+
+    }catch(err){
+
+        document.getElementById("result").innerHTML=
+        `<span style="color:red">${err}</span>`;
+    }
 }
 
 calculate();
+
 </script>
 
 </body>
