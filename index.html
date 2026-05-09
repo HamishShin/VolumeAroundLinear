@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>Volume of Revolution Visualizer</title>
 
@@ -18,7 +18,7 @@ body{
 
 h1{
     text-align:center;
-    margin:12px;
+    margin:10px;
 }
 
 .container{
@@ -30,7 +30,7 @@ h1{
 }
 
 .panel{
-    width:350px;
+    width:340px;
     background:#1e293b;
     padding:20px;
     border-radius:15px;
@@ -69,16 +69,11 @@ button:hover{
     background:#1d4ed8;
 }
 
-.result{
-    margin-top:15px;
-    line-height:1.7;
-}
-
 .formula{
     background:#111827;
     padding:10px;
     border-radius:10px;
-    overflow-wrap:break-word;
+    margin-top:15px;
 }
 
 canvas{
@@ -93,8 +88,6 @@ canvas{
 #viewer3d{
     width:50%;
     display:none;
-    border-radius:15px;
-    overflow:hidden;
 }
 
 </style>
@@ -119,11 +112,11 @@ canvas{
 <label>Upper Bound</label>
 <input id="bInput" value="2">
 
-<button onclick="calculate()">Calculate</button>
+<button id="calcBtn">Calculate</button>
 
-<button onclick="toggle3D()">Toggle 3D Visualizer</button>
+<button id="toggle3dBtn">Toggle 3D Visualizer</button>
 
-<div class="result" id="result"></div>
+<div id="result"></div>
 
 <p>
 Scroll to zoom<br>
@@ -138,19 +131,14 @@ Drag to pan / rotate
 
 </div>
 
-<script type="module">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+<script>
 
 //////////////////////////////////////////////////////////
-// IMPORTS
-//////////////////////////////////////////////////////////
-
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
-
-import { OrbitControls }
-from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js";
-
-//////////////////////////////////////////////////////////
-// GENERAL MATH
+// MATH
 //////////////////////////////////////////////////////////
 
 function preprocess(expr){
@@ -255,12 +243,15 @@ let dragging=false;
 let lastX,lastY;
 
 canvas.addEventListener("mousedown",e=>{
+
     dragging=true;
+
     lastX=e.clientX;
     lastY=e.clientY;
 });
 
 window.addEventListener("mouseup",()=>{
+
     dragging=false;
 });
 
@@ -297,7 +288,6 @@ function toCanvas(x,y){
 function drawGrid(){
 
     ctx.strokeStyle="#ddd";
-    ctx.lineWidth=1;
 
     let step=scale;
 
@@ -362,67 +352,13 @@ function drawCurve(f,color){
         if(first){
             ctx.moveTo(px,py);
             first=false;
-        }else{
+        }
+        else{
             ctx.lineTo(px,py);
         }
     }
 
     ctx.stroke();
-}
-
-function drawLine(m,b){
-
-    ctx.strokeStyle="red";
-    ctx.lineWidth=2;
-
-    ctx.setLineDash([10,10]);
-
-    ctx.beginPath();
-
-    let p1=toCanvas(-100,m*(-100)+b);
-    let p2=toCanvas(100,m*(100)+b);
-
-    ctx.moveTo(p1.x,p1.y);
-    ctx.lineTo(p2.x,p2.y);
-
-    ctx.stroke();
-
-    ctx.setLineDash([]);
-}
-
-function shadeRegion(f,m,b,a,u){
-
-    ctx.fillStyle="rgba(59,130,246,0.35)";
-
-    ctx.beginPath();
-
-    let first=true;
-
-    for(let x=a;x<=u;x+=0.01){
-
-        let y=f(x);
-
-        let p=toCanvas(x,y);
-
-        if(first){
-            ctx.moveTo(p.x,p.y);
-            first=false;
-        }else{
-            ctx.lineTo(p.x,p.y);
-        }
-    }
-
-    for(let x=u;x>=a;x-=0.01){
-
-        let y=m*x+b;
-
-        let p=toCanvas(x,y);
-
-        ctx.lineTo(p.x,p.y);
-    }
-
-    ctx.closePath();
-    ctx.fill();
 }
 
 //////////////////////////////////////////////////////////
@@ -431,7 +367,7 @@ function shadeRegion(f,m,b,a,u){
 
 let currentData=null;
 
-window.calculate=function(){
+function calculate(){
 
     try{
 
@@ -439,12 +375,17 @@ window.calculate=function(){
 
         const f=makeFunction(fExpr);
 
-        const axis=document.getElementById("axisInput").value;
+        const {m,b}=parseLine(
+            document.getElementById("axisInput").value
+        );
 
-        const {m,b}=parseLine(axis);
+        const lower=Number(
+            document.getElementById("aInput").value
+        );
 
-        const lower=Number(document.getElementById("aInput").value);
-        const upper=Number(document.getElementById("bInput").value);
+        const upper=Number(
+            document.getElementById("bInput").value
+        );
 
         const k=Math.sqrt(m*m+1);
 
@@ -465,18 +406,18 @@ window.calculate=function(){
         document.getElementById("result").innerHTML=`
 
 <div class="formula">
+
+<b>Formula:</b><br><br>
+
 V = π∫[${lower},${upper}]
-(f(${k.toFixed(4)}x)-g(${k.toFixed(4)}x))² dx
-</div>
+(f(${k.toFixed(4)}x)-g(${k.toFixed(4)}x))²dx
 
-<br>
+<br><br>
 
-<b>Axis Slope:</b> ${m}<br>
-<b>k:</b> ${k.toFixed(6)}<br><br>
-
-<b>Approximate Volume:</b><br>
+<b>Volume:</b><br>
 ${volume.toFixed(8)}
 
+</div>
 `;
 
         currentData={
@@ -501,31 +442,27 @@ function redraw2D(){
 
     if(!currentData) return;
 
-    const {f,m,b,lower,upper}=currentData;
+    const {f,m,b}=currentData;
 
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
     drawGrid();
     drawAxes();
 
-    shadeRegion(f,m,b,lower,upper);
-
     drawCurve(f,"#22c55e");
 
     drawCurve(x=>m*x+b,"#ef4444");
-
-    drawLine(m,b);
 }
 
 //////////////////////////////////////////////////////////
-// 3D VISUALIZER
+// 3D
 //////////////////////////////////////////////////////////
 
 let scene,camera,renderer,controls,mesh;
 
 let showing3D=false;
 
-window.toggle3D=function(){
+function toggle3D(){
 
     showing3D=!showing3D;
 
@@ -558,7 +495,7 @@ function init3D(){
         1000
     );
 
-    camera.position.set(0,8,18);
+    camera.position.set(0,10,20);
 
     renderer=new THREE.WebGLRenderer({
         antialias:true
@@ -568,12 +505,10 @@ function init3D(){
 
     div.appendChild(renderer.domElement);
 
-    controls=new OrbitControls(
+    controls=new THREE.OrbitControls(
         camera,
         renderer.domElement
     );
-
-    controls.enableDamping=true;
 
     const light=new THREE.DirectionalLight(0xffffff,1);
 
@@ -581,32 +516,24 @@ function init3D(){
 
     scene.add(light);
 
-    scene.add(new THREE.AmbientLight(0xffffff,0.7));
-
-    //////////////////////////////////////////////////////
-    // AXES
-    //////////////////////////////////////////////////////
-
-    const axesHelper=new THREE.AxesHelper(10);
-
-    scene.add(axesHelper);
+    scene.add(new THREE.AmbientLight(0xffffff,0.5));
 
     animate();
 }
 
 function build3D(){
 
-    if(!currentData) return;
-
     if(mesh){
         scene.remove(mesh);
     }
+
+    if(!currentData) return;
 
     const {f,m,b,lower,upper}=currentData;
 
     const points=[];
 
-    for(let x=lower;x<=upper;x+=0.02){
+    for(let x=lower;x<=upper;x+=0.03){
 
         let y=f(x);
 
@@ -614,18 +541,14 @@ function build3D(){
 
         let r=Math.abs(y-axisY);
 
-        if(!isFinite(r)) continue;
-
         points.push(
             new THREE.Vector2(r,x)
         );
     }
 
-    if(points.length<2) return;
-
     const geometry=new THREE.LatheGeometry(
         points,
-        200
+        120
     );
 
     const material=new THREE.MeshNormalMaterial({
@@ -636,10 +559,6 @@ function build3D(){
         geometry,
         material
     );
-
-    //////////////////////////////////////////////////////
-    // ORIENTATION FIX
-    //////////////////////////////////////////////////////
 
     mesh.rotation.x=Math.PI/2;
     mesh.rotation.z=-Math.atan(m);
@@ -655,16 +574,23 @@ function animate(){
         controls.update();
     }
 
-    if(renderer && scene && camera){
+    if(renderer){
         renderer.render(scene,camera);
     }
 }
 
 //////////////////////////////////////////////////////////
-// REAL TIME UPDATES
+// EVENTS
 //////////////////////////////////////////////////////////
 
-document.querySelectorAll("input").forEach(input=>{
+document.getElementById("calcBtn")
+.addEventListener("click",calculate);
+
+document.getElementById("toggle3dBtn")
+.addEventListener("click",toggle3D);
+
+document.querySelectorAll("input")
+.forEach(input=>{
 
     input.addEventListener("input",()=>{
 
@@ -675,7 +601,7 @@ document.querySelectorAll("input").forEach(input=>{
 });
 
 //////////////////////////////////////////////////////////
-// INITIALIZE
+// START
 //////////////////////////////////////////////////////////
 
 calculate();
